@@ -1,36 +1,35 @@
 "use client"
 
-import { useWallet } from "@/hooks/use-wallet"
+import { useEffect, useState } from "react"
+import { db } from "@/lib/firebase"
+import { collection, onSnapshot } from "firebase/firestore"
 import { TrendingUp, TrendingDown } from "lucide-react"
 
 export function MarketTicker() {
-  const { prices } = useWallet()
+  const [coins, setCoins] = useState<any[]>([])
 
-  const marketData = Object.values(prices).map((price) => ({
-    ...price,
-    priceFormatted: price.price.toLocaleString("en-EG", {
-      style: "currency",
-      currency: "EGP",
-      minimumFractionDigits: 0,
-    }),
-  }))
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "coins"), (snap) => {
+      setCoins(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+    })
+    return () => unsub()
+  }, [])
 
   return (
-    <div className="bg-card border-y overflow-hidden">
+    <div className="w-full overflow-hidden border-y bg-card">
       <div className="flex animate-scroll">
-        {[...marketData, ...marketData].map((item, index) => (
-          <div key={`${item.symbol}-${index}`} className="flex items-center gap-2 px-6 py-3 whitespace-nowrap">
-            <span className="font-medium">{item.symbol}</span>
-            <span className="text-muted-foreground">{item.priceFormatted}</span>
+        {[...coins, ...coins].map((coin, i) => (
+          <div key={i} className="flex items-center gap-2 px-6 py-2 whitespace-nowrap">
+            <span className="font-medium">{coin.symbol}</span>
+            <span className="text-muted-foreground">{coin.price} EGP</span>
             <div className="flex items-center gap-1">
-              {item.change24h >= 0 ? (
-                <TrendingUp className="w-3 h-3 text-accent" />
+              {coin.change24h >= 0 ? (
+                <TrendingUp className="w-3 h-3 text-green-500" />
               ) : (
-                <TrendingDown className="w-3 h-3 text-destructive" />
+                <TrendingDown className="w-3 h-3 text-red-500" />
               )}
-              <span className={`text-xs ${item.change24h >= 0 ? "text-accent" : "text-destructive"}`}>
-                {item.change24h >= 0 ? "+" : ""}
-                {item.change24h}%
+              <span className={`text-xs ${coin.change24h >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {coin.change24h}%
               </span>
             </div>
           </div>

@@ -1,25 +1,49 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Navigation } from "@/components/navigation"
-import { useWallet } from "@/hooks/use-wallet"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowUpRight, ArrowDownLeft, QrCode, Copy, Download, WalletIcon } from "lucide-react"
+import { db } from "@/lib/firebase"
+import { doc, onSnapshot } from "firebase/firestore"
 
 export default function WalletPage() {
   const { user, loading } = useAuth()
-  const { wallet, prices } = useWallet()
   const router = useRouter()
+  const [wallet, setWallet] = useState<any>(null)
+  const [prices, setPrices] = useState<any>({})
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/auth/login")
     }
   }, [user, loading, router])
+
+  // 🟢 جلب بيانات المحفظة من Firestore
+  useEffect(() => {
+    if (user?.uid) {
+      const unsub = onSnapshot(doc(db, "wallets", user.uid), (snap) => {
+        if (snap.exists()) {
+          setWallet(snap.data())
+        }
+      })
+      return () => unsub()
+    }
+  }, [user])
+
+  // 🟢 جلب أسعار العملات من Firestore (collection: prices)
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "prices", "latest"), (snap) => {
+      if (snap.exists()) {
+        setPrices(snap.data())
+      }
+    })
+    return () => unsub()
+  }, [])
 
   if (loading) {
     return (
@@ -33,11 +57,12 @@ export default function WalletPage() {
     return null
   }
 
+  // 🟢 المحافظ المدعومة
   const wallets = [
     {
       symbol: "EGP",
       name: "Egyptian Pound",
-      balance: wallet.egpBalance,
+      balance: wallet.egpBalance || 0,
       price: 1,
       icon: "£",
       address: null,
@@ -45,26 +70,26 @@ export default function WalletPage() {
     {
       symbol: "BTC",
       name: "Bitcoin",
-      balance: wallet.btcBalance,
-      price: prices.BTC?.price || 0,
+      balance: wallet.btcBalance || 0,
+      price: prices.BTC || 0,
       icon: "₿",
-      address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+      address: wallet.btcAddress || "",
     },
     {
       symbol: "ETH",
       name: "Ethereum",
-      balance: wallet.ethBalance,
-      price: prices.ETH?.price || 0,
+      balance: wallet.ethBalance || 0,
+      price: prices.ETH || 0,
       icon: "Ξ",
-      address: "0x742d35Cc6634C0532925a3b8D4C9db96590b5b8e",
+      address: wallet.ethAddress || "",
     },
     {
       symbol: "USDT",
       name: "Tether",
-      balance: wallet.usdtBalance,
-      price: prices.USDT?.price || 0,
+      balance: wallet.usdtBalance || 0,
+      price: prices.USDT || 0,
       icon: "₮",
-      address: "0x742d35Cc6634C0532925a3b8D4C9db96590b5b8e",
+      address: wallet.usdtAddress || "",
     },
   ]
 
@@ -177,7 +202,11 @@ export default function WalletPage() {
                             <Button variant="ghost" size="sm">
                               <QrCode className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigator.clipboard.writeText(walletItem.address)}
+                            >
                               <Copy className="w-4 h-4" />
                             </Button>
                           </div>

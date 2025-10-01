@@ -159,7 +159,7 @@ export function DepositForm() {
             {method === "etisalat" && (
               <>
                 <p className="font-semibold">Etisalat Cash Number:</p>
-                <p className="text-green-500 font-bold">01120003344</p>
+                <p className="text-green-500 font-bold">01149923748</p>
               </>
             )}
             {method === "instapay" && (
@@ -171,7 +171,7 @@ export function DepositForm() {
             {method === "fawry" && (
               <>
                 <p className="font-semibold">Fawry Reference Code:</p>
-                <p className="text-yellow-600 font-bold">1234567890</p>
+                <p className="text-yellow-600 font-bold">01149923748</p>
               </>
             )}
             {method === "bank" && (

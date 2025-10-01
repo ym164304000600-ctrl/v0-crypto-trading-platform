@@ -10,13 +10,15 @@ import { RecentTransactions } from "@/components/dashboard/recent-transactions"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Bell, Settings, Gift, Users } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot } from "firebase/firestore"
+import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore"
 
-// MarketTicker
+// 🔥 MarketTicker (شريط العملات)
 function MarketTicker() {
-  const [coins, setCoins] = useState([])
+  const [coins, setCoins] = useState<any[]>([])
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "coins"), (snap) => {
@@ -42,9 +44,13 @@ function MarketTicker() {
   )
 }
 
-// My Holdings (احترافية أكثر)
-function CryptoHoldings() {
-  const [coins, setCoins] = useState([])
+// 💰 My Holdings + نافذة البيع/الشراء
+function CryptoHoldings({ user }: { user: any }) {
+  const [coins, setCoins] = useState<any[]>([])
+  const [selectedCoin, setSelectedCoin] = useState<any>(null)
+  const [action, setAction] = useState<"buy" | "sell" | null>(null)
+  const [amount, setAmount] = useState<string>("")
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "coins"), (snap) => {
@@ -53,36 +59,121 @@ function CryptoHoldings() {
     return () => unsub()
   }, [])
 
-  return (
-    <Card>
-      <CardContent className="p-6">
-        <h2 className="font-semibold mb-4 text-lg">My Holdings</h2>
-        <div className="space-y-4">
-          {coins.map((coin) => {
-            const qty = coin.quantity || 0 // لو انت ضايف quantity في الفايرستور
-            const totalValue = (qty * coin.price).toFixed(2)
+  const handleOpen = (coin: any, type: "buy" | "sell") => {
+    setSelectedCoin(coin)
+    setAction(type)
+    setAmount("")
+    setOpen(true)
+  }
 
-            return (
-              <div key={coin.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold">
-                    {coin.symbol.slice(0, 2)}
+  const handleConfirm = async () => {
+    if (!selectedCoin || !action || !amount) return
+
+    const qty = selectedCoin.quantity || 0
+    const price = selectedCoin.price
+    const totalCost = Number(amount) * price
+
+    if (action === "buy") {
+      if (user.egpBalance < totalCost) {
+        alert("رصيدك غير كافي للشراء!")
+        return
+      }
+      await updateDoc(doc(db, "coins", selectedCoin.id), {
+        quantity: qty + Number(amount),
+      })
+    } else if (action === "sell") {
+      if (qty < Number(amount)) {
+        alert("لا يوجد كمية كافية للبيع!")
+        return
+      }
+      await updateDoc(doc(db, "coins", selectedCoin.id), {
+        quantity: qty - Number(amount),
+      })
+    }
+
+    setOpen(false)
+  }
+
+  return (
+    <>
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="font-semibold mb-4 text-lg">My Holdings</h2>
+          <div className="space-y-4">
+            {coins.map((coin) => {
+              const qty = coin.quantity || 0
+              const totalValue = (qty * coin.price).toFixed(2)
+
+              return (
+                <div
+                  key={coin.id}
+                  className="flex items-center justify-between border-b pb-3 last:border-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold">
+                      {coin.symbol.slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="font-medium">
+                        {coin.name} ({coin.symbol})
+                      </p>
+                      <p className="text-xs text-muted-foreground">Qty: {qty}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{coin.name} ({coin.symbol})</p>
-                    <p className="text-xs text-muted-foreground">Qty: {qty}</p>
+                  <div className="text-right">
+                    <p className="font-semibold">${coin.price}</p>
+                    <p className="text-xs text-muted-foreground">≈ ${totalValue}</p>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => handleOpen(coin, "buy")}
+                      >
+                        Buy
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="destructive"
+                        onClick={() => handleOpen(coin, "sell")}
+                        disabled={qty === 0}
+                      >
+                        Sell
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">${coin.price}</p>
-                  <p className="text-xs text-muted-foreground">≈ ${totalValue}</p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* نافذة احترافية واحدة للشراء والبيع */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {action === "buy" ? "شراء" : "بيع"} {selectedCoin?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>السعر الحالي: ${selectedCoin?.price}</p>
+            <Input
+              type="number"
+              value={amount}
+              min={1}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="أدخل الكمية"
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={handleConfirm}>
+              تأكيد {action === "buy" ? "الشراء" : "البيع"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -149,22 +240,25 @@ export default function DashboardPage() {
             {/* Portfolio Overview */}
             <div className="grid lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                {/* الكارت الأصفر الأساسي */}
                 <PortfolioCard />
               </div>
               <div>
-                <CryptoHoldings />
+                <CryptoHoldings user={user} />
               </div>
             </div>
 
-            {/* Promotional Banners */}
+            {/* Charts and Transactions */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <PortfolioChart />
+              <RecentTransactions />
+            </div>
+
+            {/* Promo Banners */}
             <div className="grid md:grid-cols-2 gap-4">
               <Card className="bg-gradient-to-r from-accent/10 to-accent/5 border-accent/20">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center">
-                      <Gift className="w-6 h-6 text-accent" />
-                    </div>
+                    <Gift className="w-6 h-6 text-accent" />
                     <div className="flex-1">
                       <h3 className="font-semibold">Welcome Bonus</h3>
                       <p className="text-sm text-muted-foreground">
@@ -179,13 +273,11 @@ export default function DashboardPage() {
               <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Users className="w-6 h-6 text-primary" />
-                    </div>
+                    <Users className="w-6 h-6 text-primary" />
                     <div className="flex-1">
                       <h3 className="font-semibold">Refer Friends</h3>
                       <p className="text-sm text-muted-foreground">
-                        Earn 50 EGP for each successful referral
+                        Earn 50 EGP for each referral
                       </p>
                     </div>
                     <Button size="sm" variant="outline">
@@ -194,12 +286,6 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-
-            {/* Charts and Transactions */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              <PortfolioChart />
-              <RecentTransactions />
             </div>
           </div>
         </main>
