@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/auth-context"
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore"
+import { collection, query, where, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import type { Transaction } from "@/lib/types"
 import { ArrowUpRight, ArrowDownLeft, Search, Download } from "lucide-react"
@@ -25,15 +25,17 @@ export function TransactionHistory() {
   useEffect(() => {
     if (!user) return
 
-    const q = query(collection(db, "transactions"), where("userId", "==", user.uid), orderBy("createdAt", "desc"))
+    const q = query(collection(db, "transactions"), where("userId", "==", user.uid))
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const transactionData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-      })) as Transaction[]
+      const transactionData = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+        }))
+        .sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime()) as Transaction[]
 
       setTransactions(transactionData)
       setLoading(false)

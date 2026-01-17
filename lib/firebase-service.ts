@@ -8,8 +8,6 @@ import {
   addDoc,
   query,
   where,
-  orderBy,
-  limit,
   getDocs,
   serverTimestamp,
 } from "firebase/firestore"
@@ -114,14 +112,19 @@ export class FirebaseService {
 
   async getUserTransactions(userId: string, limitCount = 10): Promise<Transaction[]> {
     const transactionsRef = collection(db, "transactions")
-    const q = query(transactionsRef, where("userId", "==", userId), orderBy("createdAt", "desc"), limit(limitCount))
+    const q = query(transactionsRef, where("userId", "==", userId))
 
     const querySnapshot = await getDocs(q)
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-    })) as Transaction[]
+    const transactions = querySnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+      }))
+      .sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime())
+      .slice(0, limitCount) as Transaction[]
+
+    return transactions
   }
 }
 
