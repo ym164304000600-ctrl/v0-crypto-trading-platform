@@ -5,9 +5,9 @@ import Link from "next/link"
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="landing-page min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -40,11 +40,11 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
+      <section className="landing-hero container mx-auto px-4 py-24 text-center md:py-32">
+        <div className="relative z-10 mx-auto max-w-4xl">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 text-balance">
             Professional Crypto Trading
-            <span className="text-primary block">for Egypt</span>
+            <span className="text-primary block">{"\u00a0"}for Egypt</span>
           </h1>
 
           <p className="text-xl text-muted-foreground mb-8 text-pretty max-w-2xl mx-auto">
